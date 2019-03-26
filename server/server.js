@@ -1,6 +1,7 @@
 require('./config/config');
 const express = require('express')
 const app = express()
+const mongoose = require('mongoose');
 const bodyParser = require('body-parser')
 
 
@@ -10,41 +11,13 @@ app.use(bodyParser.urlencoded({ extended: false }))
 // parse application/json
 app.use(bodyParser.json())
 
+app.use(require('./routes/usuario'));
 
-//get para obtener registros
-app.get('/usuario', function(req, res) {
-    res.json('get usuario')
-});
-
-//post para crear nuevos registros
-app.post('/usuario', function(req, res) {
-    let body = req.body;
-
-    if (body.nombre === undefined) {
-        res.status(400).json({
-            ok: false,
-            mensaje: 'El nombre es necesario'
-        });
-    } else {
-        res.json({
-            persona: body
-        })
-    }
-
-
-});
-
-//put para actualizar registros
-app.put('/usuario/:id', function(req, res) {
-    let id = req.params.id;
-
-    res.json({ id });
-});
-
-//delete para eliminar registros o marcar como no disponible
-app.delete('/usuario', function(req, res) {
-    res.json('delete usuario')
-});
+mongoose.connect(process.env.URLDB, { useNewUrlParser: true, useCreateIndex: true },
+    (err, res) => {
+        if (err) throw new err;
+        console.log('Base de datos ONLINE!');
+    });
 
 app.listen(process.env.PORT, () => {
     console.log('Escuchando puerto ', process.env.PORT)
