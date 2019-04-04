@@ -1,51 +1,68 @@
 const express = require('express');
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.CLIENT_ID);
 
+
+
 const Usuario = require('../models/usuario');
+
 const app = express();
 
+
+
 app.post('/login', (req, res) => {
+
     let body = req.body;
-    Usuario.findOne({ email: body.email }, (err, usuarioBD) => {
+
+    Usuario.findOne({ email: body.email }, (err, usuarioDB) => {
+
         if (err) {
             return res.status(500).json({
                 ok: false,
                 err
             });
         }
-        if (!usuarioBD) {
+
+        if (!usuarioDB) {
             return res.status(400).json({
                 ok: false,
                 err: {
-                    message: 'Usuario incorrecto'
+                    message: '(Usuario) o contraseña incorrectos'
                 }
             });
         }
 
-        if (!bcrypt.compareSync(body.password, usuarioBD.password)) {
+
+        if (!bcrypt.compareSync(body.password, usuarioDB.password)) {
             return res.status(400).json({
                 ok: false,
                 err: {
-                    message: 'Constraseña incorrecta'
+                    message: 'Usuario o (contraseña) incorrectos'
                 }
             });
         }
+
         let token = jwt.sign({
-            usuario: usuarioBD
-        }, process.env.SEED, { expiresIn: process.env.CADUCIDAD_TOKEN })
+            usuario: usuarioDB
+        }, process.env.SEED, { expiresIn: process.env.CADUCIDAD_TOKEN });
+
         res.json({
             ok: true,
-            usuario: usuarioBD,
+            usuario: usuarioDB,
             token
-        })
-    })
+        });
+
+
+    });
 
 });
 
-//Configuraciones de Google
+
+// Configuraciones de Google
 async function verify(token) {
     const ticket = await client.verifyIdToken({
         idToken: token,
@@ -54,19 +71,15 @@ async function verify(token) {
         //[CLIENT_ID_1, CLIENT_ID_2, CLIENT_ID_3]
     });
     const payload = ticket.getPayload();
-    // const userid = payload['sub'];
-    // const domain = payload['hd'];
-    // console.log(payload.name);
-    // console.log(payload.email);
-    // console.log(payload.picture);
+
     return {
         nombre: payload.name,
         email: payload.email,
         img: payload.picture,
         google: true
     }
+
 }
-//verify().catch(console.error);
 
 
 app.post('/google', async(req, res) => {
@@ -81,7 +94,7 @@ app.post('/google', async(req, res) => {
             });
         });
 
-    //Se busca si ya existe el usuario con el mismo correo
+
     Usuario.findOne({ email: googleUser.email }, (err, usuarioDB) => {
 
         if (err) {
@@ -92,7 +105,7 @@ app.post('/google', async(req, res) => {
         };
 
         if (usuarioDB) {
-            //Si el usuario no se ha autenticado por google
+
             if (usuarioDB.google === false) {
                 return res.status(400).json({
                     ok: false,
@@ -101,7 +114,6 @@ app.post('/google', async(req, res) => {
                     }
                 });
             } else {
-                //Si existe en la BD y ademas ya esta autenticado por google, se renueva el token
                 let token = jwt.sign({
                     usuario: usuarioDB
                 }, process.env.SEED, { expiresIn: process.env.CADUCIDAD_TOKEN });
@@ -116,7 +128,6 @@ app.post('/google', async(req, res) => {
             }
 
         } else {
-            //Si el usuario no existe en la BD. El usuario ocupa por primera vez sus credenciales validas de google para crear su usuario en la BD local
             // Si el usuario no existe en nuestra base de datos
             let usuario = new Usuario();
 
@@ -126,7 +137,6 @@ app.post('/google', async(req, res) => {
             usuario.google = true;
             usuario.password = ':)';
 
-            //Se guarda en la base de datos
             usuario.save((err, usuarioDB) => {
 
                 if (err) {
@@ -157,5 +167,9 @@ app.post('/google', async(req, res) => {
 
 
 });
+
+
+
+
 
 module.exports = app;
